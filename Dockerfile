@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:latest AS bigbuilder
 
 # https://github.com/tailwindlabs/tailwindcss/releases
 ARG TAILWINDCSS_VERSION=3.3.3
@@ -62,7 +62,7 @@ RUN curl -fsSL https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz -
 	&& rm go.tgz \
     #
     # Cleanup
-    && mkdir -p /go/bin \
+    && mkdir -p /go/bin /go/pkg /go/src \
     && chmod -R 1777 /go \
     && rm -rf /go/src /go/pkg /tmp/gotools \
     #
@@ -80,3 +80,39 @@ RUN curl -fsSL https://github.com/tailwindlabs/tailwindcss/releases/download/v${
     && curl -fsSL https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.tar.gz -o /tmp/hugo.tgz \
     && tar -C /usr/local/bin -xf /tmp/hugo.tgz hugo \
     && rm /tmp/hugo.tgz
+
+
+FROM bigbuilder AS tmpgobuilder
+
+# Make sure bobin is empty!
+RUN rm -rf /go/bin/*
+
+# Installs gopls and its dependencies. This provides full Go support for vscode.
+RUN mkdir -p /tmp/gotools \
+    && cd /tmp/gotools \
+    # Not sure why, but these break in go 1.18 if we build them all in one swoop
+    && go install -v golang.org/x/tools/gopls@latest \
+    && go install -v github.com/uudashr/gopkgs/v2/cmd/gopkgs@latest \
+    && go install -v github.com/ramya-rao-a/go-outline@latest \
+    && go install -v github.com/fatih/gomodifytags@latest \
+    && go install -v github.com/haya14busa/goplay/cmd/goplay@latest \
+    && go install -v github.com/josharian/impl@latest \
+    && go install -v github.com/cweill/gotests/gotests@latest \
+    && go install -v honnef.co/go/tools/cmd/staticcheck@latest \
+    && go install -v golang.org/x/lint/golint@latest \
+    && go install -v github.com/mgechev/revive@latest \
+    && go install -v github.com/go-delve/delve/cmd/dlv@latest \
+    #&& go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
+    #
+    # Installs our extra tools (in addition to the ones above required for go vscode support)
+    && go install -v \
+        github.com/vektra/mockery/v2@latest
+
+
+FROM bigbuilder AS bigdev
+
+COPY --from=tmpgobuilder --chmod=755 /go/bin/* /go/bin
+
+# The vscode-go team has been experimenting with dlv dap native interface. They expect the new binary to be named
+# dlv-dap, but it is actually identical to dlv. Yeah... I have no idea why as well... Lets just make a copy
+RUN ln -s /go/bin/dlv /go/bin/dlv-dap
