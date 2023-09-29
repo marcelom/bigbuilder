@@ -14,13 +14,6 @@ on: # https://docs.github.com/en/actions/deployment/about-deployments/deploying-
 jobs:
   docker:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - image: marcelosm/bigbuilder
-            dockerfile: Dockerfile.bigbuilder
-          - image: marcelosm/bigdev
-            dockerfile: Dockerfile.bigdev
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -38,11 +31,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASS }}
 
-      - name: Docker meta
-        id: meta
+      - name: Docker meta bigbuilder
+        id: meta-bigbuilder
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image }}
+          images: marcelosm/bigbuilder
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -50,15 +43,40 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=schedule,pattern={{date 'YYYYMMDD-hhmmss' tz='US/Pacific'}}
 
-      - name: Build and push
+      - name: Build and push bigbuilder
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          target: bigbuilder
           pull: true
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-bigbuilder.outputs.tags }}
+          labels: ${{ steps.meta-bigbuilder.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Docker meta bigdev
+        id: meta-bigdev
+        uses: docker/metadata-action@v5
+        with:
+          images: marcelosm/bigdev
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=schedule,pattern={{date 'YYYYMMDD-hhmmss' tz='US/Pacific'}}
+
+      - name: Build and push bigdev
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: bigdev
+          pull: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-bigdev.outputs.tags }}
+          labels: ${{ steps.meta-bigdev.outputs.labels }}
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
