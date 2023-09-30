@@ -1,4 +1,4 @@
-FROM ubuntu:latest AS bigbuilder
+FROM ubuntu:latest AS builder
 
 # https://github.com/tailwindlabs/tailwindcss/releases
 ARG TAILWINDCSS_VERSION=3.3.3
@@ -82,9 +82,9 @@ RUN curl -fsSL https://github.com/tailwindlabs/tailwindcss/releases/download/v${
     && rm /tmp/hugo.tgz
 
 
-FROM bigbuilder AS tmpgobuilder
+FROM builder AS tmpgobuilder
 
-# Make sure bobin is empty!
+# Make sure gobin is empty!
 RUN rm -rf /go/bin/*
 
 # Installs gopls and its dependencies. This provides full Go support for vscode.
@@ -109,7 +109,7 @@ RUN mkdir -p /tmp/gotools \
         github.com/vektra/mockery/v2@latest
 
 
-FROM bigbuilder AS bigdev
+FROM builder
 
 COPY --from=tmpgobuilder --chmod=755 /go/bin/* /go/bin
 

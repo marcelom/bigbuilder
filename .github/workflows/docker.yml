@@ -28,11 +28,11 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USER }}
+          username: ${{ vars.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASS }}
 
-      - name: Docker meta bigbuilder
-        id: meta-bigbuilder
+      - name: Docker meta
+        id: meta
         uses: docker/metadata-action@v5
         with:
           images: marcelosm/bigbuilder
@@ -43,40 +43,14 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=schedule,pattern={{date 'YYYYMMDD-hhmmss' tz='US/Pacific'}}
 
-      - name: Build and push bigbuilder
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
-          target: bigbuilder
           pull: true
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-bigbuilder.outputs.tags }}
-          labels: ${{ steps.meta-bigbuilder.outputs.labels }}
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Docker meta bigdev
-        id: meta-bigdev
-        uses: docker/metadata-action@v5
-        with:
-          images: marcelosm/bigdev
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=schedule,pattern={{date 'YYYYMMDD-hhmmss' tz='US/Pacific'}}
-
-      - name: Build and push bigdev
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          target: bigdev
-          pull: true
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-bigdev.outputs.tags }}
-          labels: ${{ steps.meta-bigdev.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
